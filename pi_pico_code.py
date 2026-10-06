@@ -28,6 +28,8 @@ def iss():
     Get ISS data from open-notify.org
     """
     res = None
+    longitude = None
+    latitude = None
     
     try:
         res = requests.get(url='http://api.open-notify.org/iss-now.json')
@@ -44,7 +46,9 @@ def iss():
     finally:
         if res is not None:
             res.close()
-            
+    
+    number = None
+    
     try:
         res = requests.get(url='http://api.open-notify.org/astros.json')
         iss_crew = json.loads(res.text)
@@ -76,6 +80,8 @@ def geolocation():
     Get IP Geolocation from ip-api.com
     """
     res = None
+    longitude = None
+    latitude = None
     
     try:
         res = requests.get(url='http://ip-api.com/json/?fields=lat,lon')
