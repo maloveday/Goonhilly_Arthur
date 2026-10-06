@@ -18,7 +18,7 @@ def connect():
     wlan.connect(ssid, password)
     while wlan.isconnected() == False:
         print('Waiting for connection...')
-        sleep(1)
+        time.sleep(1)
     ip = wlan.ifconfig()[0]
     print(f'Connected on {ip}')
     
@@ -27,36 +27,83 @@ def iss():
     """
     Get ISS data from open-notify.org
     """
-    res = requests.get(url='http://api.open-notify.org/iss-now.json')
-    iss_details = json.loads(res.text)
-    longitude = iss_details['iss_position']['longitude']
-    latitude = iss_details['iss_position']['latitude']
-    res = requests.get(url='http://api.open-notify.org/astros.json')
-    iss_crew = json.loads(res.text)
-    number = iss_crew['number']
-    print(f'ISS longitude is {longitude} and latitude is {latitude}')
-    print(f'ISS crew number is {number}')
-    return float(latitude), float(longitude)
+    res = None
+    
+    try:
+        res = requests.get(url='http://api.open-notify.org/iss-now.json')
+        iss_details = json.loads(res.text)
+        longitude = iss_details['iss_position']['longitude']
+        latitude = iss_details['iss_position']['latitude']
+    
+    except OSError as e:
+        print(f'Network error: {e}')
+        
+    except ValueError as e:
+        print(f'Invalid JSON: {e}')
+        
+    finally:
+        if res is not None:
+            res.close()
+            
+    try:
+        res = requests.get(url='http://api.open-notify.org/astros.json')
+        iss_crew = json.loads(res.text)
+        number = iss_crew['number']
+    
+    except OSError as e:
+        print(f'Network error: {e}')
+        
+    except ValueError as e:
+        print(f'Invalid JSON: {e}')
+        
+    finally:
+        if res is not None:
+            res.close()
+            
+    if longitude is not None:        
+        print(f'ISS longitude is {longitude} and latitude is {latitude}')
+
+    if number is not None:
+        print(f'ISS crew number is {number}')
+    
+    if longitude is not None and number is not None:
+        return True, float(latitude), float(longitude), float(number)
+    else:
+        return False, None, None, None
 
 def geolocation():
     """
     Get IP Geolocation from ip-api.com
     """
-    res = requests.get(url='http://ip-api.com/json/?fields=lat,lon')
-    geo_details = json.loads(res.text)
-    longitude = geo_details['lon']
-    latitude = geo_details['lat']
-    print(f'My longitude is {longitude} and latitude is {latitude}')
-    return float(latitude), float(longitude)
+    res = None
+    
+    try:
+        res = requests.get(url='http://ip-api.com/json/?fields=lat,lon')
+        geo_details = json.loads(res.text)
+        longitude = geo_details['lon']
+        latitude = geo_details['lat']
+        
+    except OSError as e:
+        print(f'Network error: {e}')
+        
+    except ValueError as e:
+        print(f'Invalid JSON: {e}')
+        
+    finally:
+        if res is not None:
+            res.close()
+            
+    if longitude is not None:
+        print(f'My longitude is {longitude} and latitude is {latitude}')
+        return True, float(latitude), float(longitude)
+    else:
+        return False, None, None
 
-def iss_visibility(iss_lat, iss_lon, my_lat, my_lon,
-                   iss_alt_km=420.0, min_elevation_deg=10.0):
+def iss_visibility(iss_lat, iss_lon, my_lat, my_lon, max_distance_km=1000):
     """
     Returns:
-        visible      - True if ISS elevation >= minimum elevation
-        distance_km  - Approximate straight-line distance to ISS
-        elevation_deg - ISS elevation above local horizon
-
+        visible      - True if ISS distance <= max distance
+        
     All lat/lon values are in degrees.
     """
 
@@ -69,64 +116,52 @@ def iss_visibility(iss_lat, iss_lon, my_lat, my_lon,
     lon2 = math.radians(iss_lon)
 
     # Earth-centred angular separation
+    dlat = lat2 - lat1
     dlon = lon2 - lon1
 
-    cos_c = (
-        math.sin(lat1) * math.sin(lat2) +
-        math.cos(lat1) * math.cos(lat2) * math.cos(dlon)
+    a = (
+        math.sin(dlat / 2) ** 2 +
+        math.cos(lat1) *
+        math.cos(lat2) *
+        math.sin(dlon / 2 ) ** 2
     )
+    
+    c = 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a))
 
-    # Clamp for floating-point safety
-    cos_c = max(-1.0, min(1.0, cos_c))
+    distance_km = R * c
+    
+    return distance_km <= max_distance_km
 
-    central_angle = math.acos(cos_c)
-
-    # Distance from Earth's centre
-    r_iss = R + iss_alt_km
-
-    # Straight-line distance from observer to ISS
-    distance_km = math.sqrt(
-        R * R +
-        r_iss * r_iss -
-        2.0 * R * r_iss * math.cos(central_angle)
-    )
-
-    # Elevation angle
-    numerator = r_iss * math.cos(central_angle) - R
-    denominator = r_iss * math.sin(central_angle)
-
-    elevation_rad = math.atan2(numerator, denominator)
-    elevation_deg = math.degrees(elevation_rad)
-
-    visible = elevation_deg >= min_elevation_deg
-
-    return visible
-
-def blink_led():
-    pico_led.on()
-    time.sleep(1)
-    pico_led.off()
-    time.sleep(1)
+def blink_led(number=1):
+    """
+    Blinks led 'number' of times
+    """
+    i=0
+    while i < number:
+        pico_led.on()
+        time.sleep(0.5)
+        pico_led.off()
+        time.sleep(0.5)
+        i = i + 1
     
 try:
     connect()
-    my_lat, my_lon = geolocation()
     
 except KeyboardInterrupt:
     machine.reset()
+
+go, my_lat, my_lon = geolocation()
+
+while go:
+    status, iss_lat, iss_lon, num = iss()
     
-while True:
-    try:
-        iss_lat, iss_lon = iss()
+    if status:
         visible = iss_visibility(iss_lat, iss_lon, my_lat, my_lon)
         
         if visible:
-            print("Lookup! ISS is above 10 degrees.")
-            blink_led()
+            print('Lookup! ISS visible.')
+            blink_led(num)
         else:
-            print("ISS is not currently visible.")
+            print('ISS is not currently visible.')
         
-        time.sleep(600)
-        
-    except KeyboardInterrupt:
-        machine.reset()
+    time.sleep(600)
