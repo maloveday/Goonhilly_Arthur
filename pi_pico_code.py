@@ -177,11 +177,14 @@ while go:
     
     if status:
         visible = iss_visibility(iss_lat, iss_lon, my_lat, my_lon)
-        alive()
         
         if visible:
             print('Lookup! ISS visible.')
             blink_led(num)
         else:
             print('ISS is not currently visible.')
-            time.sleep(600)
+            i=0
+            while i < 30:
+                alive()
+                time.sleep(18)
+                i = i + 1
