@@ -5,9 +5,8 @@ import requests
 import json
 import math
 import time
-from picozero import pico_led
+from picozero import pico_led, LED
 from secrets import ssid, password
-
 
 def connect():
     """
@@ -138,18 +137,32 @@ def iss_visibility(iss_lat, iss_lon, my_lat, my_lon, max_distance_km=1000):
     
     return distance_km <= max_distance_km
 
+def alive():
+    """
+    Blink on board led
+    """
+    pico_led.on()
+    time.sleep(0.5)
+    pico_led.off()
+    time.sleep(1.0)
+    pico_led.on()
+    time.sleep(0.5)
+    pico_led.off()
+    
 def blink_led(number=1):
     """
-    Blinks led 'number' of times
+    Blinks GPIO port 13 'number' of times
     """
     i=0
     while i < number:
-        pico_led.on()
+        antenna.on()
         time.sleep(0.5)
-        pico_led.off()
+        antenna.off()
         time.sleep(0.5)
         i = i + 1
-    
+
+antenna = LED(13) # Use GP13
+
 try:
     connect()
     
@@ -159,15 +172,16 @@ except KeyboardInterrupt:
 go, my_lat, my_lon = geolocation()
 
 while go:
+    alive()
     status, iss_lat, iss_lon, num = iss()
     
     if status:
         visible = iss_visibility(iss_lat, iss_lon, my_lat, my_lon)
+        alive()
         
         if visible:
             print('Lookup! ISS visible.')
             blink_led(num)
         else:
             print('ISS is not currently visible.')
-        
-    time.sleep(600)
+            time.sleep(600)
