@@ -135,7 +135,16 @@ def iss_visibility(iss_lat, iss_lon, my_lat, my_lon, max_distance_km=1000):
 
     distance_km = R * c
     
-    return distance_km <= max_distance_km
+    delay = 300
+    
+    if distance_km <= max_distance_km:
+        delay = 10
+    elif distance_km <= (max_distance_km * 3):
+        delay = 60
+    
+    visible = (distance_km <= max_distance_km)
+    
+    return visible, delay
 
 def alive():
     """
@@ -176,15 +185,13 @@ while go:
     status, iss_lat, iss_lon, num = iss()
     
     if status:
-        visible = iss_visibility(iss_lat, iss_lon, my_lat, my_lon)
+        visible, delay = iss_visibility(iss_lat, iss_lon, my_lat, my_lon)
         
         if visible:
             print('Lookup! ISS visible.')
             blink_led(num)
         else:
             print('ISS is not currently visible.')
-            i=0
-            while i < 30:
-                alive()
-                time.sleep(18)
-                i = i + 1
+            alive()
+            
+        time.sleep(delay)
