@@ -22,9 +22,9 @@ def connect():
     print(f'Connected on {ip}')
     
 
-def iss():
+def iss_location():
     """
-    Get ISS data from open-notify.org
+    Get ISS location data from open-notify.org
     """
     res = None
     longitude = None
@@ -45,7 +45,18 @@ def iss():
     finally:
         if res is not None:
             res.close()
-    
+            
+    if longitude is not None:        
+        print(f'ISS longitude is {longitude} and latitude is {latitude}')
+        return True, float(latitude), float(longitude)
+    else:
+        return False, None, None
+
+def iss_onboard():
+    """
+    Get ISS onboard number from open-notify.org
+    """
+    res = None
     number = None
     
     try:
@@ -63,16 +74,11 @@ def iss():
         if res is not None:
             res.close()
             
-    if longitude is not None:        
-        print(f'ISS longitude is {longitude} and latitude is {latitude}')
-
     if number is not None:
-        print(f'ISS crew number is {number}')
-    
-    if longitude is not None and number is not None:
-        return True, float(latitude), float(longitude), float(number)
+        print(f'ISS crew number is {number}')    
+        return True, float(number)
     else:
-        return False, None, None, None
+        return False, None
 
 def geolocation():
     """
@@ -182,16 +188,19 @@ go, my_lat, my_lon = geolocation()
 
 while go:
     alive()
-    status, iss_lat, iss_lon, num = iss()
+    status, iss_lat, iss_lon = iss_location()
     
     if status:
         visible, delay = iss_visibility(iss_lat, iss_lon, my_lat, my_lon)
         
         if visible:
             print('Lookup! ISS visible.')
-            blink_led(num)
+            status, num = iss_onboard()
+            if status:
+                blink_led(num)
+            else:
+                blink_led()
         else:
             print('ISS is not currently visible.')
-            alive()
             
         time.sleep(delay)
