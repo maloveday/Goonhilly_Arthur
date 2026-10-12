@@ -141,12 +141,12 @@ def iss_visibility(iss_lat, iss_lon, my_lat, my_lon, max_distance_km=1000):
 
     distance_km = R * c
     
-    delay = 300
+    delay = 60
     
     if distance_km <= max_distance_km:
-        delay = 10
-    elif distance_km <= (max_distance_km * 3):
-        delay = 60
+        delay = 1
+    elif distance_km <= (max_distance_km * 5):
+        delay = 5
     
     visible = (distance_km <= max_distance_km)
     
